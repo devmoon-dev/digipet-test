@@ -32,12 +32,17 @@ int level = 1;      // 1=아기, 2=성장
 unsigned long growTimer = 0;
 //진화
 int evolution = 0;
+int petType = 0;
+int stage = 0;
 //배설
 bool poop = false;
 unsigned long poopTimer = 0;
 //밤낮시간
 unsigned long worldTimer;
 bool isDay = true;
+//구름
+int cloudX = 0;
+unsigned long cloudTimer = 0;
 
 enum GameState {
   EGG,
@@ -126,7 +131,7 @@ void loop() {
     level = 2;   // 30초 후 성장
   }
   //나이 타이머 여기서 테스트용으로 1분을 1살로 셋팅해놨다. 다음에 조정가능
-  if (millis() - ageTimer > 60000) {  // 1분 = 1살
+  if (millis() - ageTimer > 6000) {  // 1분 = 1살
     age++;
     ageTimer = millis();
   }
@@ -137,12 +142,18 @@ void loop() {
   
   //나이에 따라 진화
   if (age >= 3 && age < 7) {
+    chooseEvolution();
+    stage = 1;
     evolution = 1;
   }
   if (age >= 7 && age < 10) {
+    chooseEvolution();
+    stage = 2;
     evolution = 2;
   }
   if (age >= 10) {
+    chooseEvolution();
+    stage = 3;
     evolution = 3;
   }
 
@@ -157,6 +168,13 @@ void loop() {
   drawScreen();
 
 }
+//진화체크만들었지만 쓰지않고있다.
+void evolutionCheck(){
+  if(stage == 2 && millis() - growTimer > 60000){
+    stage = 3;
+    chooseEvolution();
+  }
+}
 
 void updateStats() {
   if (millis() - lastUpdate > 5000) {
@@ -166,7 +184,7 @@ void updateStats() {
     lastUpdate = millis();
   }
   if (poop) {
-    happy -= 1;
+    happy -= 0.1;
   }
   if (hunger <= 0 || energy <= 0) {
     state = DEAD;
@@ -252,7 +270,7 @@ void restartGame() {
 void drawPet() {
   int size;
   int eyeOffset;
-  //int y = 36; //pet 바닥에
+  int y = 32; //pet 입 y
   if (evolution == 0) {
     size = 6;   // 아기
     eyeOffset = 3;
@@ -281,42 +299,112 @@ void drawPet() {
     lastAnim = millis();
   }
   //이거좀 이상하다. 주석
-  display.fillCircle(64-eyeOffset, 30, 2, SSD1306_BLACK);
-  display.fillCircle(64+eyeOffset, 30, 2, SSD1306_BLACK);
+  //display.fillCircle(64-eyeOffset, 30, 2, SSD1306_BLACK);
+  //display.fillCircle(64+eyeOffset, 30, 2, SSD1306_BLACK);
   Mood mood = getMood();
   //level에 따른 성장 표현
-//  size = (level == 1) ? 8 : 12;
-  display.fillCircle(64, 36, size, SSD1306_WHITE);
-  // 얼굴을 흰색으로 채움
-  //display.fillCircle(64, 32, 12, SSD1306_WHITE);
+  //size = (level == 1) ? 8 : 12;
+  if(stage < 3){
+    display.fillCircle(64, 36, size, SSD1306_WHITE);
+    // 얼굴을 흰색으로 채움
+    //display.fillCircle(64, 32, 12, SSD1306_WHITE);
     
-  int eyeY = animFrame ? 28 : 30;
+    int eyeY = animFrame ? 28 : 30;
   
-  switch (mood) {
+    display.fillCircle(64-eyeOffset, eyeY, 2, SSD1306_BLACK);
+    display.fillCircle(64+eyeOffset, eyeY, 2, SSD1306_BLACK);
+/*  switch (mood) {
 
     case HAPPY:
-      display.fillCircle(59, eyeY, 2, SSD1306_BLACK);
-      display.fillCircle(69, eyeY, 2, SSD1306_BLACK);
-      display.drawLine(58, 36, 70, 36, SSD1306_BLACK);
+      //display.fillCircle(59, eyeY, 2, SSD1306_BLACK);
+      //display.fillCircle(69, eyeY, 2, SSD1306_BLACK);
+      //display.drawLine(58, 36, 70, 36, SSD1306_BLACK);
       break;
 
     case HUNGRY:
       display.fillCircle(59, eyeY, 2, SSD1306_BLACK);
       display.fillCircle(69, eyeY, 2, SSD1306_BLACK);
-      display.drawLine(58, 38, 70, 34, SSD1306_BLACK);
+      //display.drawLine(58, 38, 70, 34, SSD1306_BLACK);
       break;
 
     case SLEEPY:
       display.drawLine(57, eyeY, 61, eyeY, SSD1306_BLACK);
       display.drawLine(67, eyeY, 71, eyeY, SSD1306_BLACK);
-      display.drawLine(60, 36, 68, 36, SSD1306_BLACK);
+      //display.drawLine(60, 36, 68, 36, SSD1306_BLACK);
       break;
 
     default:
       display.fillCircle(59, eyeY, 2, SSD1306_BLACK);
       display.fillCircle(69, eyeY, 2, SSD1306_BLACK);
-      display.drawLine(60, 36, 68, 36, SSD1306_BLACK);
+      //display.drawLine(60, 36, 68, 36, SSD1306_BLACK);
       break;
+  }*/
+ 
+  
+    if(hunger < 20){
+    // 배고픔
+      display.drawLine(60,y+4,68,y+2,SSD1306_BLACK);
+    } else if(happy > 70){
+    // 행복
+      display.drawLine(60,y+4,68,y+4,SSD1306_BLACK);
+    } else{
+    // 기본
+      display.drawLine(60,y+4,68,y+3,SSD1306_BLACK);
+    }
+  } else if(stage == 3){
+    int eyeY = animFrame ? 28 : 30;
+    switch(petType){
+      case 1: // 행복형
+        display.fillCircle(64,30,12,SSD1306_WHITE);
+        display.fillCircle(60,eyeY,2,SSD1306_BLACK);
+        display.fillCircle(68,eyeY,2,SSD1306_BLACK);
+        display.drawLine(58,34,70,34,SSD1306_BLACK);
+      break;
+
+      case 2: // 배고픔형
+      display.fillCircle(64,30,12,SSD1306_WHITE);
+      display.fillCircle(60,eyeY,2,SSD1306_BLACK);
+      display.fillCircle(68,eyeY,2,SSD1306_BLACK);
+      display.drawLine(60,36,68,32,SSD1306_BLACK);
+      break;
+
+      case 3: // 졸림형
+      display.fillCircle(64,30,12,SSD1306_WHITE);
+      display.drawLine(58,27,62,27,SSD1306_BLACK);
+      display.drawLine(66,27,70,27,SSD1306_BLACK);
+      display.drawLine(60,34,68,34,SSD1306_BLACK);
+      break;
+
+      case 4: // 활동형
+      display.fillCircle(64,30,12,SSD1306_WHITE);
+      display.fillCircle(58,26,2,SSD1306_BLACK);
+      display.fillCircle(70,26,2,SSD1306_BLACK);
+      display.drawLine(60,34,68,36,SSD1306_BLACK);
+      break;
+
+      case 5: // 균형형
+      display.fillCircle(64,30,13,SSD1306_WHITE);
+      display.fillCircle(60,27,2,SSD1306_BLACK);
+      display.fillCircle(68,27,2,SSD1306_BLACK);
+      display.drawLine(60,34,68,34,SSD1306_BLACK);
+      break;
+
+      case 6: // 장난형
+      display.fillCircle(64,30,12,SSD1306_WHITE);
+      display.fillCircle(58,27,2,SSD1306_BLACK);
+      display.fillCircle(68,29,2,SSD1306_BLACK);
+      display.drawLine(60,34,70,34,SSD1306_BLACK);
+      break;
+
+      case 7: // 희귀형
+      display.fillCircle(64,28,14,SSD1306_WHITE);
+      display.fillCircle(60,25,2,SSD1306_BLACK);
+      display.fillCircle(68,25,2,SSD1306_BLACK);
+      display.drawLine(58,34,70,34,SSD1306_BLACK);
+      display.drawLine(50,20,58,25,SSD1306_WHITE);
+      display.drawLine(78,25,86,20,SSD1306_WHITE);
+      break;
+    }
   }
 }
 
@@ -324,9 +412,11 @@ void drawScreen() {
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.fillCircle(64, 32, 10, SSD1306_WHITE);
-  
-  updateWorld();
-  drawBackground();
+
+  updateCloud();//구름움직임
+  updateWorld();//밤낮
+  drawBackground();//배경
+//  drawStats();//상태바
 
   display.setTextSize(1);
   //맨위에 나이 표시
@@ -339,45 +429,48 @@ void drawScreen() {
   display.print(hunger);
   display.print(" E:");
   display.print(energy);
+  display.setCursor(0,10);
+  display.print("HP:");
+  display.print(happy);
 
   if (state == EGG) {
 
-  display.clearDisplay();
+    display.clearDisplay();
 
-  unsigned long elapsed = millis() - eggStartTime;
+    unsigned long elapsed = millis() - eggStartTime;
 
-  int crackStage = 0;
-  if (elapsed > 1500) crackStage = 1;
-  if (elapsed > 3000) crackStage = 2;
+    int crackStage = 0;
+    if (elapsed > 1500) crackStage = 1;
+    if (elapsed > 3000) crackStage = 2;
 
-  // 흔들림 강도 점점 증가
-  int shakePower = map(elapsed, 0, 5000, 0, 4);
-  int shake = random(-shakePower, shakePower);
+    // 흔들림 강도 점점 증가
+    int shakePower = map(elapsed, 0, 5000, 0, 4);
+    int shake = random(-shakePower, shakePower);
 
-  // 알 그리기
-  display.fillCircle(64 + shake, 34, 10, SSD1306_WHITE);
-  display.fillCircle(64 + shake, 28, 8, SSD1306_WHITE);
+    // 알 그리기
+    display.fillCircle(64 + shake, 34, 10, SSD1306_WHITE);
+    display.fillCircle(64 + shake, 28, 8, SSD1306_WHITE);
 
-  // 금
-  if (crackStage >= 1)
-    display.drawLine(64+shake, 26, 60+shake, 34, SSD1306_BLACK);
-
-  if (crackStage >= 2) {
-    display.drawLine(60+shake, 34, 68+shake, 40, SSD1306_BLACK);
-    display.drawLine(68+shake, 40, 64+shake, 46, SSD1306_BLACK);
-  }
-
-  // 부화 직전 깜빡임
-  if (elapsed > 4500) {
-    if (millis() % 200 < 100)
-      display.invertDisplay(true);
-    else
-      display.invertDisplay(false);
+    // 금
+    if (crackStage >= 1)
+      display.drawLine(64+shake, 26, 60+shake, 34, SSD1306_BLACK);
+    if (crackStage >= 2) {
+      display.drawLine(60+shake, 34, 68+shake, 40, SSD1306_BLACK);
+      display.drawLine(68+shake, 40, 64+shake, 46, SSD1306_BLACK);
     }
 
+    // 부화 직전 깜빡임
+    if (elapsed > 4500) {
+      if (millis() % 200 < 100){
+        display.invertDisplay(true);
+      } else {
+        display.invertDisplay(false);
+      }
+      display.invertDisplay(false);
+    }
+  
     // 5초 지나면 부화
     if (elapsed > 5000) {
-      delay(200);//리셋할때 가끔 화면색이 반전되어 나옴. 살짝 delay를..
       display.invertDisplay(false); 
       tone(BUZZER, 1200, 150);
       delay(200);
@@ -431,6 +524,7 @@ void drawScreen() {
 
   display.display();
 }
+
 //밤낮전환 함수
 void updateWorld(){
 
@@ -441,16 +535,10 @@ void updateWorld(){
 }
 //배경그리기
 void drawBackground(){
-
+  
   if(isDay){
-
     // 태양
     display.drawCircle(110,10,6,WHITE);
-
-    // 구름
-    display.drawCircle(20,12,4,WHITE);
-    display.drawCircle(25,12,4,WHITE);
-    display.drawCircle(30,12,4,WHITE);
 
   }else{
 
@@ -466,8 +554,64 @@ void drawBackground(){
     display.drawPixel(50,14,WHITE);
 
   }
+  // 움직이는 구름
+    display.drawCircle(cloudX,12,4,WHITE);
+    display.drawCircle(cloudX+5,12,4,WHITE);
+    display.drawCircle(cloudX+10,12,4,WHITE);
 
   // 바닥
   display.drawLine(0,48,128,48,WHITE);
+
+}
+
+//구름 움직임
+void updateCloud(){
+
+  if(millis() - cloudTimer > 120){
+
+    cloudX++;
+
+    if(cloudX > 128)
+      cloudX = -30;
+
+    cloudTimer = millis();
+  }
+
+}
+
+//상태바 그리기
+void drawStats(){
+
+  // Hunger
+  display.drawRect(2,2,30,6,WHITE);
+  display.fillRect(2,2,hunger/3,6,WHITE);
+
+  // Happy
+  display.drawRect(40,2,30,6,WHITE);
+  display.fillRect(40,2,happy/3,6,WHITE);
+
+  // Energy
+  display.drawRect(78,2,30,6,WHITE);
+  display.fillRect(78,2,energy/3,6,WHITE);
+}
+
+//진화형태
+void chooseEvolution(){
+
+  if(happy > 80 && energy > 60){
+    petType = 1; // 행복형
+  } else if(hunger < 20){
+    petType = 2; // 배고픔형
+  } else if(energy < 20){
+    petType = 3; // 졸림형
+  } else if(happy > 60){
+    petType = 4; // 활동형
+  } else if(hunger > 70 && energy > 70){
+    petType = 5; // 균형형
+  } else if(happy > 40){
+    petType = 6; // 장난형
+  } else{
+    petType = 7; // 희귀형
+  }
 
 }
